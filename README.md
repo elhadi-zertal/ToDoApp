@@ -1,36 +1,62 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# To-Do App
 
-## Getting Started
+A clean, modern To-Do web application built with **Next.js**, **Supabase**, and **Tailwind CSS**.
 
-First, run the development server:
+## Features
+
+- 🔐 Email / password auth (sign up, log in, log out)
+- ✅ Add, complete, and delete tasks
+- 🔍 Filter by All / Active / Completed
+- 📊 Remaining-tasks counter
+- ☁️ Cloud storage — tasks persist across sessions and devices
+- 🎨 Responsive dark/light mode UI
+
+## Setup
+
+### 1. Clone & install
+
+```bash
+git clone <your-repo>
+cd ToDoApp
+npm install
+```
+
+### 2. Supabase project
+
+1. Create a project at [supabase.com](https://supabase.com)
+2. Go to **SQL Editor** and run `supabase-schema.sql` from this repo
+3. Go to **Settings → API** and copy your **URL** and **anon key**
+
+### 3. Environment variables
+
+Create `.env.local` (or rename `.env.local` already in the repo):
+
+```
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+```
+
+### 4. Run locally
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Open [http://localhost:3000](http://localhost:3000).
 
 ## Deploy on Vercel
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+1. Push to GitHub
+2. Import the repo on [vercel.com](https://vercel.com)
+3. Add the two environment variables above in the Vercel dashboard
+4. Deploy 🚀
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Tech Stack
+
+| Layer          | Technology            |
+| -------------- | --------------------- |
+| Framework      | Next.js 15 (App Router) |
+| Language       | TypeScript            |
+| Styling        | Tailwind CSS          |
+| Auth & DB      | Supabase              |
+| Deployment     | Vercel                |
