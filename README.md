@@ -1,62 +1,62 @@
-# To-Do App
+# ✅ To-Do App
 
 A clean, modern To-Do web application built with **Next.js**, **Supabase**, and **Tailwind CSS**.
 
+🌐 **Live:** [todo-app-hxdi.vercel.app](https://todo-app-hxdi.vercel.app/login)
+
+---
+
 ## Features
 
-- 🔐 Email / password auth (sign up, log in, log out)
-- ✅ Add, complete, and delete tasks
-- 🔍 Filter by All / Active / Completed
-- 📊 Remaining-tasks counter
-- ☁️ Cloud storage — tasks persist across sessions and devices
-- 🎨 Responsive dark/light mode UI
+- 🔐 **Authentication** — Email/password sign up, log in, and log out
+- ✅ **Task Management** — Add, complete, and delete tasks
+- 🔍 **Filtering** — View All / Active / Completed tasks
+- 📊 **Task Counter** — Remaining tasks displayed in real time
+- ☁️ **Cloud Persistence** — Tasks sync across sessions and devices
+- 📱 **Responsive UI** — Works on desktop and mobile
 
-## Setup
+---
 
-### 1. Clone & install
+## Tech Stack
 
-```bash
-git clone <your-repo>
-cd ToDoApp
-npm install
+| Layer        | Technology              |
+| ------------ | ----------------------- |
+| Framework    | Next.js 16 (App Router) |
+| Language     | TypeScript              |
+| Styling      | Tailwind CSS v4         |
+| Auth & DB    | Supabase                |
+| Deployment   | Vercel                  |
+
+---
+
+## Project Structure
+
+```
+src/
+├── app/          # Next.js App Router pages & API routes
+├── context/      # React context providers (auth, tasks)
+└── lib/          # Supabase client & utility helpers
 ```
 
-### 2. Supabase project
+---
 
-1. Create a project at [supabase.com](https://supabase.com)
-2. Go to **SQL Editor** and run `supabase-schema.sql` from this repo
-3. Go to **Settings → API** and copy your **URL** and **anon key**
+## Environment Variables
 
-### 3. Environment variables
-
-Create `.env.local` (or rename `.env.local` already in the repo):
+The app requires the following environment variables (configured in Vercel):
 
 ```
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 ```
 
-### 4. Run locally
+---
 
-```bash
-npm run dev
-```
+## Database Schema
 
-Open [http://localhost:3000](http://localhost:3000).
+The Supabase schema is defined in [`supabase-schema.sql`](./supabase-schema.sql). Run it in the **Supabase SQL Editor** to set up the required tables.
 
-## Deploy on Vercel
+---
 
-1. Push to GitHub
-2. Import the repo on [vercel.com](https://vercel.com)
-3. Add the two environment variables above in the Vercel dashboard
-4. Deploy 🚀
+## License
 
-## Tech Stack
-
-| Layer          | Technology            |
-| -------------- | --------------------- |
-| Framework      | Next.js 15 (App Router) |
-| Language       | TypeScript            |
-| Styling        | Tailwind CSS          |
-| Auth & DB      | Supabase              |
-| Deployment     | Vercel                |
+MIT
