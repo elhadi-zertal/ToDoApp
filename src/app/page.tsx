@@ -144,15 +144,24 @@ export default function HomePage() {
   };
 
   const toggleTodo = async (id: string, is_complete: boolean) => {
+    const nowComplete = !is_complete;
     setTodos((prev) =>
       prev.map((t) =>
-        t.id === id ? { ...t, is_complete: !is_complete } : t
+        t.id === id ? { ...t, is_complete: nowComplete } : t
       )
     );
     await supabase
       .from("todos")
-      .update({ is_complete: !is_complete })
+      .update({ is_complete: nowComplete })
       .eq("id", id);
+
+    // Auto-delete after 1.5s if task was just completed
+    if (nowComplete) {
+      setTimeout(async () => {
+        setTodos((prev) => prev.filter((t) => t.id !== id));
+        await supabase.from("todos").delete().eq("id", id);
+      }, 1500);
+    }
   };
 
   const deleteTodo = async (id: string) => {
@@ -224,7 +233,7 @@ export default function HomePage() {
 
   const emptyMessages: Record<Filter, { title: string; desc: string }> = {
     all: {
-      title: "It\u2019s quiet in here\u2026",
+      title: "It's quiet in here...",
       desc: "Add a task above to start organizing your day.",
     },
     today: {
@@ -236,8 +245,8 @@ export default function HomePage() {
       desc: "Add a task with a future due date to see it here.",
     },
     overdue: {
-      title: "No overdue tasks! \ud83c\udf89",
-      desc: "You\u2019re on top of everything. Great job!",
+      title: "No overdue tasks!",
+      desc: "You're on top of everything. Great job!",
     },
   };
 
@@ -316,7 +325,7 @@ export default function HomePage() {
                 type="text"
                 value={newTask}
                 onChange={(e) => setNewTask(e.target.value)}
-                placeholder="Add a new task\u2026"
+                placeholder="Add a new task..."
                 className="task-input"
               />
               <input
@@ -433,7 +442,7 @@ export default function HomePage() {
                           }))
                         }
                         className="task-edit-input"
-                        placeholder="Task title\u2026"
+                        placeholder="Task title..."
                         onKeyDown={(e) => {
                           if (e.key === "Enter") saveEdit(todo.id);
                           if (e.key === "Escape") cancelEdit();
@@ -450,6 +459,7 @@ export default function HomePage() {
                         }
                         className="date-picker task-edit-date"
                         title="Due date"
+                        min={today}
                       />
                       <textarea
                         value={editForm.description}
@@ -472,14 +482,14 @@ export default function HomePage() {
                           {saving ? (
                             <span className="add-btn-spinner" />
                           ) : (
-                            "\u2705 Save"
+                            "Save"
                           )}
                         </button>
                         <button
                           onClick={cancelEdit}
                           className="edit-cancel-btn"
                         >
-                          \u274c Cancel
+                          Cancel
                         </button>
                       </div>
                     </div>
@@ -554,7 +564,7 @@ export default function HomePage() {
                                 : ""
                             }`}
                           >
-                            \ud83d\udcc5 {formatDueDate(todo.due_date)}
+                            {formatDueDate(todo.due_date)}
                           </span>
                         )}
                       </div>
