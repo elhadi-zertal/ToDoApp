@@ -54,3 +54,6 @@ alter table public.todos add column if not exists priority boolean not null defa
 
 -- 10. Index for efficient due-date queries
 create index if not exists idx_todos_due_date on public.todos(due_date);
+
+-- 11. Optional description for each task
+alter table public.todos add column if not exists description text;
