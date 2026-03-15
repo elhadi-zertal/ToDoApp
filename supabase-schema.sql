@@ -41,3 +41,16 @@ create policy "Users can delete their own todos"
 
 -- 7. Index for faster queries per user
 create index if not exists idx_todos_user_id on public.todos(user_id);
+
+-- ============================================
+-- Task Scheduling columns (run after initial schema)
+-- ============================================
+
+-- 8. Optional due date for scheduling
+alter table public.todos add column if not exists due_date date;
+
+-- 9. Priority flag — set true automatically for overdue tasks
+alter table public.todos add column if not exists priority boolean not null default false;
+
+-- 10. Index for efficient due-date queries
+create index if not exists idx_todos_due_date on public.todos(due_date);

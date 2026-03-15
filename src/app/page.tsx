@@ -5,13 +5,32 @@ import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
-type Filter = "all" | "active" | "completed";
+type Filter = "all" | "active" | "completed" | "today" | "upcoming" | "overdue";
 
 interface Todo {
   id: string;
   text: string;
   is_complete: boolean;
   created_at: string;
+  due_date: string | null;
+  priority: boolean;
+}
+
+// Returns today's date in YYYY-MM-DD (local time)
+function todayStr(): string {
+  const d = new Date();
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+function formatDueDate(dateStr: string | null): string | null {
+  if (!dateStr) return null;
+  const today = todayStr();
+  if (dateStr === today) return "Today";
+  const d = new Date(dateStr + "T00:00:00");
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
 }
 
 export default function HomePage() {
@@ -19,6 +38,7 @@ export default function HomePage() {
   const router = useRouter();
   const [todos, setTodos] = useState<Todo[]>([]);
   const [newTask, setNewTask] = useState("");
+  const [newDueDate, setNewDueDate] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
   const [loadingTodos, setLoadingTodos] = useState(true);
   const [adding, setAdding] = useState(false);
@@ -31,19 +51,43 @@ export default function HomePage() {
     }
   }, [user, loading, router]);
 
-  // Fetch todos
+  // Fetch todos + run overdue promotion
   useEffect(() => {
     if (!user) return;
-    const fetchTodos = async () => {
+    const fetchAndProcess = async () => {
       const { data } = await supabase
         .from("todos")
         .select("*")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false });
-      setTodos(data ?? []);
+
+      const all: Todo[] = data ?? [];
+      const today = todayStr();
+
+      // Identify incomplete tasks whose due_date is strictly before today
+      const overdueIds = all
+        .filter((t) => !t.is_complete && t.due_date && t.due_date < today)
+        .map((t) => t.id);
+
+      // Batch-update overdue tasks: set due_date=today, priority=true
+      if (overdueIds.length > 0) {
+        await supabase
+          .from("todos")
+          .update({ due_date: today, priority: true })
+          .in("id", overdueIds);
+
+        // Reflect changes in local state
+        const updated = all.map((t) =>
+          overdueIds.includes(t.id) ? { ...t, due_date: today, priority: true } : t
+        );
+        setTodos(updated);
+      } else {
+        setTodos(all);
+      }
+
       setLoadingTodos(false);
     };
-    fetchTodos();
+    fetchAndProcess();
   }, [user]);
 
   const addTodo = async (e: React.FormEvent) => {
@@ -52,12 +96,18 @@ export default function HomePage() {
     setAdding(true);
     const { data, error } = await supabase
       .from("todos")
-      .insert({ text: newTask.trim(), user_id: user.id })
+      .insert({
+        text: newTask.trim(),
+        user_id: user.id,
+        due_date: newDueDate || null,
+        priority: false,
+      })
       .select()
       .single();
     if (!error && data) {
       setTodos((prev) => [data, ...prev]);
       setNewTask("");
+      setNewDueDate("");
       inputRef.current?.focus();
     }
     setAdding(false);
@@ -75,13 +125,36 @@ export default function HomePage() {
     await supabase.from("todos").delete().eq("id", id);
   };
 
-  const filteredTodos = todos.filter((t) => {
-    if (filter === "active") return !t.is_complete;
-    if (filter === "completed") return t.is_complete;
-    return true;
+  const today = todayStr();
+
+  // Filtering
+  const filtered = todos.filter((t) => {
+    switch (filter) {
+      case "active":    return !t.is_complete;
+      case "completed": return t.is_complete;
+      case "today":     return !t.is_complete && t.due_date === today;
+      case "upcoming":  return !t.is_complete && !!t.due_date && t.due_date > today;
+      case "overdue":   return !t.is_complete && t.priority === true;
+      default:          return true;
+    }
+  });
+
+  // Priority tasks always sort to the top
+  const filteredTodos = [...filtered].sort((a, b) => {
+    if (a.priority === b.priority) return 0;
+    return a.priority ? -1 : 1;
   });
 
   const activeTodosCount = todos.filter((t) => !t.is_complete).length;
+
+  const emptyMessages: Record<Filter, { title: string; desc: string }> = {
+    all:       { title: "It's quiet in here…",    desc: "Add a task above to start organizing your day." },
+    active:    { title: "You're all caught up!",  desc: "Enjoy your free time, or add more tasks above." },
+    completed: { title: "Nothing completed yet.", desc: "Complete a task to see it show up here." },
+    today:     { title: "Nothing due today.",     desc: "Tasks scheduled for today will appear here." },
+    upcoming:  { title: "No upcoming tasks.",     desc: "Add a task with a future due date to see it here." },
+    overdue:   { title: "No overdue tasks! 🎉",   desc: "You're on top of everything. Great job!" },
+  };
 
   // ── Loading / auth guard ──────────────────────────────────
   if (loading || (!user && !loading)) {
@@ -91,6 +164,15 @@ export default function HomePage() {
       </div>
     );
   }
+
+  const filterLabels: { key: Filter; label: string }[] = [
+    { key: "all",       label: "All" },
+    { key: "active",    label: "Active" },
+    { key: "completed", label: "Completed" },
+    { key: "today",     label: "Today" },
+    { key: "upcoming",  label: "Upcoming" },
+    { key: "overdue",   label: "Overdue" },
+  ];
 
   // ── Main UI ───────────────────────────────────────────────
   return (
@@ -140,6 +222,14 @@ export default function HomePage() {
                 placeholder="Add a new task…"
                 className="task-input"
               />
+              <input
+                type="date"
+                value={newDueDate}
+                onChange={(e) => setNewDueDate(e.target.value)}
+                className="date-picker"
+                title="Set due date (optional)"
+                min={today}
+              />
               <button
                 type="submit"
                 disabled={adding || !newTask.trim()}
@@ -160,13 +250,13 @@ export default function HomePage() {
           {/* Filter + Counter */}
           <div className="controls-row">
             <div className="filter-group">
-              {(["all", "active", "completed"] as Filter[]).map((f) => (
+              {filterLabels.map(({ key, label }) => (
                 <button
-                  key={f}
-                  onClick={() => setFilter(f)}
-                  className={`filter-btn${filter === f ? " active" : ""}`}
+                  key={key}
+                  onClick={() => setFilter(key)}
+                  className={`filter-btn${filter === key ? " active" : ""}${key === "overdue" ? " filter-btn-overdue" : ""}`}
                 >
-                  {f.charAt(0).toUpperCase() + f.slice(1)}
+                  {label}
                 </button>
               ))}
             </div>
@@ -193,27 +283,15 @@ export default function HomePage() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                 </svg>
               </div>
-              <p className="empty-title">
-                {filter === "all"
-                  ? "It's quiet in here…"
-                  : filter === "active"
-                  ? "You're all caught up!"
-                  : "Nothing completed yet."}
-              </p>
-              <p className="empty-desc">
-                {filter === "all"
-                  ? "Add a task above to start organizing your day."
-                  : filter === "active"
-                  ? "Enjoy your free time, or add more tasks above."
-                  : "Complete a task to see it show up here."}
-              </p>
+              <p className="empty-title">{emptyMessages[filter].title}</p>
+              <p className="empty-desc">{emptyMessages[filter].desc}</p>
             </div>
           ) : (
             <ul className="task-list">
               {filteredTodos.map((todo, index) => (
                 <li
                   key={todo.id}
-                  className="task-item animate-fade-in-up"
+                  className={`task-item animate-fade-in-up${todo.priority ? " priority" : ""}`}
                   style={{ animationDelay: `${index * 40}ms` }}
                 >
                   {/* Checkbox */}
@@ -236,10 +314,22 @@ export default function HomePage() {
                     )}
                   </button>
 
-                  {/* Text */}
-                  <span className={`task-text${todo.is_complete ? " done" : ""}`}>
-                    {todo.text}
-                  </span>
+                  {/* Text + Due Date */}
+                  <div className="task-body">
+                    <div className="task-text-row">
+                      <span className={`task-text${todo.is_complete ? " done" : ""}`}>
+                        {todo.text}
+                      </span>
+                      {todo.priority && !todo.is_complete && (
+                        <span className="priority-badge">Overdue</span>
+                      )}
+                    </div>
+                    {todo.due_date && (
+                      <span className={`task-due-date${todo.priority && !todo.is_complete ? " overdue" : ""}`}>
+                        📅 {formatDueDate(todo.due_date)}
+                      </span>
+                    )}
+                  </div>
 
                   {/* Delete */}
                   <button
