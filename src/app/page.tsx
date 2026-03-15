@@ -165,10 +165,13 @@ export default function HomePage() {
     );
   }
 
-  const filterLabels: { key: Filter; label: string }[] = [
+  const filterRow1: { key: Filter; label: string }[] = [
     { key: "all",       label: "All" },
     { key: "active",    label: "Active" },
     { key: "completed", label: "Completed" },
+  ];
+
+  const filterRow2: { key: Filter; label: string }[] = [
     { key: "today",     label: "Today" },
     { key: "upcoming",  label: "Upcoming" },
     { key: "overdue",   label: "Overdue" },
@@ -249,16 +252,29 @@ export default function HomePage() {
 
           {/* Filter + Counter */}
           <div className="controls-row">
-            <div className="filter-group">
-              {filterLabels.map(({ key, label }) => (
-                <button
-                  key={key}
-                  onClick={() => setFilter(key)}
-                  className={`filter-btn${filter === key ? " active" : ""}${key === "overdue" ? " filter-btn-overdue" : ""}`}
-                >
-                  {label}
-                </button>
-              ))}
+            <div className="filter-rows">
+              <div className="filter-group">
+                {filterRow1.map(({ key, label }) => (
+                  <button
+                    key={key}
+                    onClick={() => setFilter(key)}
+                    className={`filter-btn${filter === key ? " active" : ""}`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <div className="filter-group">
+                {filterRow2.map(({ key, label }) => (
+                  <button
+                    key={key}
+                    onClick={() => setFilter(key)}
+                    className={`filter-btn${filter === key ? " active" : ""}${key === "overdue" ? " filter-btn-overdue" : ""}`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
             </div>
             <span className="task-counter">
               {activeTodosCount} task{activeTodosCount !== 1 ? "s" : ""} left

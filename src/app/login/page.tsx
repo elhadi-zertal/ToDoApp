@@ -25,7 +25,7 @@ export default function LoginPage() {
       if (error) {
         setError(error);
       } else {
-        setSuccess("Check your email to confirm your account, then log in.");
+        setSuccess("Account created! You can now sign in.");
         setIsSignUp(false);
       }
     } else {

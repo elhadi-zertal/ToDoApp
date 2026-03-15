@@ -329,6 +329,12 @@ body {
   flex-wrap: wrap;
 }
 
+.filter-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
 .filter-group {
   display: flex;
   gap: 0.25rem;
