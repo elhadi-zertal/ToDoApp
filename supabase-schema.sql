@@ -57,3 +57,6 @@ create index if not exists idx_todos_due_date on public.todos(due_date);
 
 -- 11. Optional description for each task
 alter table public.todos add column if not exists description text;
+
+ALTER TABLE public.todos ADD COLUMN completed_at timestamptz;
+

@@ -15,6 +15,7 @@ interface Todo {
   due_date: string | null;
   priority: boolean;
   description: string | null;
+  completed_at: string | null;
 }
 
 interface EditForm {
@@ -43,6 +44,19 @@ function formatDueDate(dateStr: string | null): string | null {
   });
 }
 
+function formatCompletedAt(isoStr: string | null): string {
+  if (!isoStr) return "";
+  const d = new Date(isoStr);
+  return d.toLocaleDateString(undefined, {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  }) + " at " + d.toLocaleTimeString(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
 export default function HomePage() {
   const { user, loading, signOut } = useAuth();
   const router = useRouter();
@@ -60,6 +74,7 @@ export default function HomePage() {
     description: "",
   });
   const [saving, setSaving] = useState(false);
+  const [showCompleted, setShowCompleted] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const editInputRef = useRef<HTMLInputElement>(null);
 
@@ -81,6 +96,7 @@ export default function HomePage() {
       const all: Todo[] = (data ?? []).map((t: Todo) => ({
         ...t,
         description: t.description ?? null,
+        completed_at: t.completed_at ?? null,
       }));
       const today = todayStr();
       const overdueIds = all
@@ -113,6 +129,15 @@ export default function HomePage() {
     }
   }, [editingId]);
 
+  // Close modal on Escape key
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setShowCompleted(false);
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
+
   /* ── CRUD ── */
 
   const addTodo = async (e: React.FormEvent) => {
@@ -132,7 +157,7 @@ export default function HomePage() {
       .single();
     if (!error && data) {
       setTodos((prev) => [
-        { ...data, description: data.description ?? null },
+        { ...data, description: data.description ?? null, completed_at: null },
         ...prev,
       ]);
       setNewTask("");
@@ -145,26 +170,38 @@ export default function HomePage() {
 
   const toggleTodo = async (id: string, is_complete: boolean) => {
     const nowComplete = !is_complete;
+    const completed_at = nowComplete ? new Date().toISOString() : null;
+
     setTodos((prev) =>
       prev.map((t) =>
-        t.id === id ? { ...t, is_complete: nowComplete } : t
+        t.id === id ? { ...t, is_complete: nowComplete, completed_at } : t
+      )
+    );
+
+    await supabase
+      .from("todos")
+      .update({ is_complete: nowComplete, completed_at })
+      .eq("id", id);
+  };
+
+  const deleteTodo = async (id: string) => {
+    setTodos((prev) => prev.filter((t) => t.id !== id));
+    await supabase.from("todos").delete().eq("id", id);
+  };
+
+  const undoTodo = async (id: string) => {
+    setTodos((prev) =>
+      prev.map((t) =>
+        t.id === id ? { ...t, is_complete: false, completed_at: null } : t
       )
     );
     await supabase
       .from("todos")
-      .update({ is_complete: nowComplete })
+      .update({ is_complete: false, completed_at: null })
       .eq("id", id);
-
-    // Auto-delete after 1.5s if task was just completed
-    if (nowComplete) {
-      setTimeout(async () => {
-        setTodos((prev) => prev.filter((t) => t.id !== id));
-        await supabase.from("todos").delete().eq("id", id);
-      }, 1500);
-    }
   };
 
-  const deleteTodo = async (id: string) => {
+  const deleteCompletedTodo = async (id: string) => {
     setTodos((prev) => prev.filter((t) => t.id !== id));
     await supabase.from("todos").delete().eq("id", id);
   };
@@ -208,14 +245,25 @@ export default function HomePage() {
 
   const today = todayStr();
 
+  // Completed tasks: sorted newest-first
+  const completedTasks = [...todos]
+    .filter((t) => t.is_complete)
+    .sort((a, b) => {
+      const da = a.completed_at ? new Date(a.completed_at).getTime() : 0;
+      const db = b.completed_at ? new Date(b.completed_at).getTime() : 0;
+      return db - da;
+    });
+
+  // Active (incomplete) tasks only in the main list
   const filtered = todos.filter((t) => {
+    if (t.is_complete) return false;
     switch (filter) {
       case "today":
         return t.due_date === today;
       case "upcoming":
-        return !t.is_complete && !!t.due_date && t.due_date > today;
+        return !!t.due_date && t.due_date > today;
       case "overdue":
-        return !t.is_complete && t.priority === true;
+        return t.priority === true;
       default:
         return true;
     }
@@ -299,12 +347,132 @@ export default function HomePage() {
                 {user?.email}
               </span>
             </div>
+            <button
+              onClick={() => setShowCompleted(true)}
+              className="nav-completed-btn"
+              title="View completed tasks"
+            >
+              Completed
+            </button>
             <button onClick={signOut} className="nav-signout">
               Sign out
             </button>
           </div>
         </div>
       </nav>
+
+      {/* Completed Tasks Modal */}
+      {showCompleted && (
+        <div
+          className="completed-overlay"
+          onClick={() => setShowCompleted(false)}
+        >
+          <div
+            className="completed-panel"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Panel header */}
+            <div className="completed-panel-header">
+              <h2 className="completed-panel-title">
+                <span style={{ marginRight: "0.5rem" }}></span>
+                Completed Tasks
+                {completedTasks.length > 0 && (
+                  <span className="completed-count-badge">
+                    {completedTasks.length}
+                  </span>
+                )}
+              </h2>
+              <button
+                className="completed-close-btn"
+                onClick={() => setShowCompleted(false)}
+                aria-label="Close completed tasks"
+              >
+                <svg
+                  style={{ width: "1.125rem", height: "1.125rem" }}
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2.5}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </button>
+            </div>
+
+            {/* Divider */}
+            <div className="completed-divider" />
+
+            {/* Task list */}
+            {completedTasks.length === 0 ? (
+              <div className="completed-empty">
+                <span className="completed-empty-icon"></span>
+                <p className="completed-empty-title">No completed tasks yet</p>
+                <p className="completed-empty-desc">
+                  Tasks you complete will appear here.
+                </p>
+              </div>
+            ) : (
+              <ul className="completed-list">
+                {completedTasks.map((todo) => (
+                  <li key={todo.id} className="completed-task-row">
+                    <div className="completed-task-body">
+                      <div className="completed-task-title-row">
+                        <span className="completed-task-check"></span>
+                        <span className="completed-task-title">
+                          {todo.text}
+                        </span>
+                      </div>
+                      {todo.description && (
+                        <p className="completed-task-desc">
+                          {todo.description}
+                        </p>
+                      )}
+                      {todo.completed_at && (
+                        <p className="completed-task-time">
+                          🕐 Completed on {formatCompletedAt(todo.completed_at)}
+                        </p>
+                      )}
+                    </div>
+                    <div className="completed-task-actions">
+                      <button
+                        className="undo-btn"
+                        onClick={() => undoTodo(todo.id)}
+                        title="Mark as incomplete"
+                      >
+                        Undo
+                      </button>
+                      <button
+                        className="completed-delete-btn"
+                        onClick={() => deleteCompletedTodo(todo.id)}
+                        title="Permanently delete"
+                        aria-label="Delete completed task"
+                      >
+                        <svg
+                          style={{ width: "0.9rem", height: "0.9rem" }}
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                          strokeWidth={2}
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                          />
+                        </svg>
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Body */}
       <main className="page-body">
