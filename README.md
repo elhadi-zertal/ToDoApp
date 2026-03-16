@@ -2,7 +2,7 @@
 
 A clean, modern To-Do web application built with **Next.js**, **Supabase**, and **Tailwind CSS**.
 
-🌐 **Live:** [todo-app-hxdi.vercel.app](https://todo-app-hxdi.vercel.app/login)
+🌐 **Live:** [mytasks-hxdi.vercel.app](https://mytasks-hxdi.vercel.app/login)
 
 ---
 
