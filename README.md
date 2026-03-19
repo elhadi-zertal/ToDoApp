@@ -57,6 +57,6 @@ The Supabase schema is defined in [`supabase-schema.sql`](./supabase-schema.sql)
 
 ---
 
-## License
+## 📄 License
 
-MIT
+All rights reserved — contact me for licensing.
